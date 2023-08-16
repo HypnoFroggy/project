@@ -1,5 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-use std::io::Write;
+//use std::io::Write;
 use eframe::egui;
 use std::fs::{File, OpenOptions};
 use std::io::Read;
@@ -17,15 +17,41 @@ fn main() -> Result<(), eframe::Error> {
         Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
-
+struct sector {
+    info: String,
+    empl: String,
+}
 struct MyApp {
-    age: u32,
+    dropcheck: bool,
+    sells: sector,
+    assembly: sector,
+    program: sector,
 }
 
 impl Default for MyApp {
     fn default() -> Self {
+        let mut paths: [&str; 6] = 
+        ["data/sells_info.txt","data/sells_employees.txt",
+        "data/assembly_info.txt","data/assembly_employees.txt",
+        "data/program_info.txt","data/program_employees.txt",];
+        let mut arr: [String; 6] = ["".to_string(),"".to_string(),"".to_string(),"".to_string(),"".to_string(),"".to_string()];
+        for (num,path) in paths.iter().enumerate() {
+            File::open(path).expect(path).read_to_string(&mut arr[num]);
+        }
         Self {
-            age: 42,
+            dropcheck: true,
+            sells: sector  {
+                info:  arr[0].clone(),
+                empl:  arr[1].clone(),
+            },
+            assembly: sector   {
+                info:  arr[2].clone(),
+                empl:  arr[3].clone(),
+            },
+            program: sector   {
+                info:  arr[4].clone(),
+                empl:  arr[5].clone(),
+            },
         }
     }
 }
@@ -41,35 +67,48 @@ impl eframe::App for MyApp {
                 for (id, section) in sections.iter().enumerate() {
                     ui.vertical(|ui| {
                         ui.scope(|ui| {
-                            ui.set_min_height(20.0);
+                            ui.set_height(10.0);
+                            ui.set_width(200.0);
                             ui.heading(*section);
                         });
                         ui.group(|ui| {
+                            ui.set_height(100.0);
+                            ui.set_width(200.0);
                             ui.label("Общая информация");
-                            ui.label(format!("{}",self.age));
-                            ui.set_min_height(200.0);
+                            if id == 0 {
+                                ui.label(format!("{}",self.sells.info));
+                            }
+                            else if id == 1 {
+                                ui.label(format!("{}",self.assembly.info));
+                            }
+                            else {
+                                ui.label(format!("{}",self.program.info));
+                            }
+                        });
+                        ui.group(|ui| {
+                            ui.set_height(100.0);
+                            ui.set_width(200.0);
+                            ui.horizontal(|ui| {
+                                ui.label("Задачи:");
+                                //ui.label();
+                            });
                         });
                         let _col = egui::collapsing_header::CollapsingHeader::new("Сотрудники")
                         .id_source(id)
                         .show(ui, |ui| {
                             ui.label("их пока нет");
-                            //let mut but = ui.button("go");
-                            if ui.button(format!("{}",id)).clicked() {
-                                self.age += id as u32;
-                                let mut file = OpenOptions::new().read(true).write(true).create(true).open("data/data.txt").unwrap();
-                                //File::open("data/data.txt").expect("create failed");
-                                let mut str1 = String::new();
-                                file.read_to_string(&mut str1).expect("write failed");
-                                file.write_all(format!("{}\n",self.age).as_bytes()).expect("write failed");
-                                //writeln!(file,"{}",format!("{}",self.age));
-                            };
                         });
                     });
                 };
-                // let name_label = ui.label("Your name: ");
-                // ui.text_edit_singleline(&mut self.name)
-                //     .labelled_by(name_label.id);
             });
+            egui::Grid::new("some_unique_id").show(ui, |ui| {
+                if ui.button("dropcheck").clicked() {
+                    let x = self.dropcheck;
+                    self.dropcheck = !x;
+                };
+                ui.radio_value(&mut self.dropcheck, true, "xt");
+            });
+            
         });
     }
 }
