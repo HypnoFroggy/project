@@ -1,12 +1,12 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
-//use std::io::Write;
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use eframe::egui;
-use std::fs::{File, OpenOptions};
-use std::io::Read;
+use std::fmt::write;
+use std::fs::File;
+use std::io::{self, BufRead, Read, Write};
+use std::path::Path;
 fn main() -> Result<(), eframe::Error> {
-    //let mut file = File::create("data/data.txt").expect("create failed");
-    //file.write_all("Hello World".as_bytes()).expect("write failed");
-    env_logger::init(); // Log to stderr (if you run with `RUST_LOG=debug`).
+    env_logger::init();
+
     let options = eframe::NativeOptions {
         initial_window_size: Some(egui::vec2(800.0, 600.0)),
         ..Default::default()
@@ -17,40 +17,65 @@ fn main() -> Result<(), eframe::Error> {
         Box::new(|_cc| Box::<MyApp>::default()),
     )
 }
-struct sector {
+
+fn read_lines<P>(filename: P) -> io::Lines<io::BufReader<File>>
+where P: AsRef<Path>, {
+    let file = File::open(filename).unwrap();
+    io::BufReader::new(file).lines()
+}
+
+fn delete_line(counter: i32, stringg: String) -> String{
+    let mut quote = "".to_string();
+    File::open(&stringg).expect(&stringg).read_to_string(&mut quote);
+    let bytes = quote.as_bytes();
+    let mut lines: Vec<usize> = vec![0];
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b'\n' {
+            lines.push(i);
+        }
+    }
+    lines.push(quote.len());
+
+    //println!("счетчик {}",counter);
+    //println!("хранимое {}",lines[counter as usize]);
+    //println!("хранимое {}",lines[(counter+1) as usize]);
+
+    //println!("{}\n",&quote[0..lines[lines.len()-1]]);
+    quote[0..lines[counter as usize]].to_string() + &quote[lines[(counter+1) as usize]..lines[lines.len()-1]]
+    //quote[lines[counter as usize]..lines[(counter+1) as usize]].to_string()
+    
+
+    //((stringg[0..lines[(counter-1) as usize]]).to_string()
+    //+&(stringg[lines[(counter) as usize]..lines[lines.len()-1]]).to_string()).to_string()
+}
+struct Sector {
     info: String,
     empl: String,
+    task: String
 }
 struct MyApp {
-    dropcheck: bool,
-    sells: sector,
-    assembly: sector,
-    program: sector,
+    sells: Sector,
+    assembly: Sector,
+    program: Sector,
 }
 
 impl Default for MyApp {
     fn default() -> Self {
-        let mut paths: [&str; 6] = 
-        ["data/sells_info.txt","data/sells_employees.txt",
-        "data/assembly_info.txt","data/assembly_employees.txt",
-        "data/program_info.txt","data/program_employees.txt",];
-        let mut arr: [String; 6] = ["".to_string(),"".to_string(),"".to_string(),"".to_string(),"".to_string(),"".to_string()];
-        for (num,path) in paths.iter().enumerate() {
-            File::open(path).expect(path).read_to_string(&mut arr[num]);
-        }
         Self {
-            dropcheck: true,
-            sells: sector  {
-                info:  arr[0].clone(),
-                empl:  arr[1].clone(),
+            sells: Sector  {
+                info:  "data/sells_info.txt".to_string(),
+                empl:  "data/sells_employees.txt".to_string(),
+                task:  "data/sells_tasks.txt".to_string()
             },
-            assembly: sector   {
-                info:  arr[2].clone(),
-                empl:  arr[3].clone(),
+            assembly: Sector   {
+                info:  "data/assembly_info.txt".to_string(),
+                empl:  "data/assembly_employees.txt".to_string(),
+                task:  "data/assembly_tasks.txt".to_string()
             },
-            program: sector   {
-                info:  arr[4].clone(),
-                empl:  arr[5].clone(),
+            program: Sector   {
+                info:  "data/program_info.txt".to_string(),
+                empl:  "data/program_employees.txt".to_string(),
+                task:  "data/program_tasks.txt".to_string()
             },
         }
     }
@@ -74,41 +99,112 @@ impl eframe::App for MyApp {
                         ui.group(|ui| {
                             ui.set_height(100.0);
                             ui.set_width(200.0);
-                            ui.label("Общая информация");
+                            ui.label("Общая информация:");
                             if id == 0 {
-                                ui.label(format!("{}",self.sells.info));
+                                let mut lab = "".to_string();
+                                File::open(&self.sells.info).expect(&self.sells.info).read_to_string(&mut lab);
+                                ui.label(format!("{}",lab));
                             }
                             else if id == 1 {
-                                ui.label(format!("{}",self.assembly.info));
+                                let mut lab = "".to_string();
+                                File::open(&self.assembly.info).expect(&self.assembly.info).read_to_string(&mut lab);
+                                ui.label(format!("{}",lab));
                             }
                             else {
-                                ui.label(format!("{}",self.program.info));
+                                let mut lab = "".to_string();
+                                File::open(&self.program.info).expect(&self.program.info).read_to_string(&mut lab);
+                                ui.label(format!("{}",lab));
                             }
                         });
                         ui.group(|ui| {
                             ui.set_height(100.0);
                             ui.set_width(200.0);
-                            ui.horizontal(|ui| {
+                            ui.vertical(|ui| {
                                 ui.label("Задачи:");
-                                //ui.label();
+                                if id == 0 {
+                                    let mut counter = 0;
+                                    for lines in read_lines(self.sells.task.clone()){
+                                        for line in lines {
+                                            ui.horizontal_wrapped(|ui|{
+                                                ui.label(line);
+                                                let but = ui.button("удалить");
+                                                if but.clicked() {
+                                                    let del = delete_line(counter, self.sells.task.clone());
+                                                    std::fs::remove_file(&self.sells.task);
+                                                    let mut task = File::create(&self.sells.task.clone()).unwrap();
+                                                    task.write_all(del.as_bytes());
+                                                    println!("{}",del);
+                                                };
+                                            });
+                                            counter += 1;
+                                        };
+                                    };
+                                }
+                                else if id == 1 {
+                                    let mut counter = 0;
+                                    let file = File::open(self.assembly.task.clone()).unwrap();
+                                    let mut f = io::BufReader::new(file).lines();
+                                    for lines in f {
+                                        for line in lines {
+                                            ui.horizontal_wrapped(|ui|{
+                                                ui.label(line);
+                                                let but = ui.button("удалить");
+                                                if but.clicked() {
+                                                    let del = delete_line(counter, self.assembly.task.clone());
+                                                    std::fs::remove_file(&self.assembly.task);
+                                                    let mut task = File::create(&self.assembly.task.clone()).unwrap();
+                                                    task.write_all(del.as_bytes());
+                                                    println!("{}",del);
+                                                };
+                                            });
+                                            counter += 1;
+                                        };
+                                    };
+                                }
+                                else {
+                                    let mut counter = 0;
+                                    for lines in read_lines(self.program.task.clone()){
+                                        for line in lines {
+                                            ui.horizontal_wrapped(|ui|{
+                                                ui.label(line);
+                                                let but = ui.button("удалить");
+                                                let but = ui.button("удалить");
+                                                if but.clicked() {
+                                                    let del = delete_line(counter, self.program.task.clone());
+                                                    std::fs::remove_file(&self.program.task);
+                                                    let mut task = File::create(&self.program.task.clone()).unwrap();
+                                                    task.write_all(del.as_bytes());
+                                                    println!("{}",del);
+                                                };
+                                            });
+                                            counter += 1;
+                                        };
+                                    };
+                                }
                             });
                         });
                         let _col = egui::collapsing_header::CollapsingHeader::new("Сотрудники")
                         .id_source(id)
                         .show(ui, |ui| {
-                            ui.label("их пока нет");
+                            if id == 0 {
+                                let mut lab = "".to_string();
+                                File::open(&self.sells.empl).expect(&self.sells.empl).read_to_string(&mut lab);
+                                ui.label(format!("{}",lab));
+                            }
+                            else if id == 1 {
+                                let mut lab = "".to_string();
+                                File::open(&self.assembly.empl).expect(&self.assembly.empl).read_to_string(&mut lab);
+                                ui.label(format!("{}",lab));
+                            }
+                            else {
+                                let mut lab = "".to_string();
+                                File::open(&self.program.empl).expect(&self.program.empl).read_to_string(&mut lab);
+                                ui.label(format!("{}",lab));
+                            };
                         });
                     });
                 };
             });
-            egui::Grid::new("some_unique_id").show(ui, |ui| {
-                if ui.button("dropcheck").clicked() {
-                    let x = self.dropcheck;
-                    self.dropcheck = !x;
-                };
-                ui.radio_value(&mut self.dropcheck, true, "xt");
-            });
-            
         });
     }
 }
