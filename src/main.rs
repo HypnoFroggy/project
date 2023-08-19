@@ -36,12 +36,22 @@ fn delete_line(counter: i32, stringg: String) -> String{
     }
     lines.push(quote.len());
 
-    //println!("счетчик {}",counter);
+    println!("счетчик {}",counter);
     //println!("хранимое {}",lines[counter as usize]);
     //println!("хранимое {}",lines[(counter+1) as usize]);
 
     //println!("{}\n",&quote[0..lines[lines.len()-1]]);
-    quote[0..lines[counter as usize]].to_string() + &quote[lines[(counter+1) as usize]..lines[lines.len()-1]]
+    if lines.len() == 2{
+        "".to_string()
+    }
+    else if counter == 0 {
+        print!("{}",quote[lines[1]..lines[lines.len()-1]].to_string());
+        quote[lines[1]+1..lines[lines.len()-1]].to_string()
+    }
+    else {
+        quote[0..lines[counter as usize]].to_string() + &quote[lines[(counter+1) as usize]..lines[lines.len()-1]]
+    }
+    
     //quote[lines[counter as usize]..lines[(counter+1) as usize]].to_string()
     
 
@@ -84,11 +94,8 @@ impl Default for MyApp {
 impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.set_height(300.0);
-            ui.set_width(300.0);
             ui.horizontal(|ui| {
                 let sections: [&str;3] = ["Отдел продаж", "Сборочный цех", "Программисты"];
-
                 for (id, section) in sections.iter().enumerate() {
                     ui.vertical(|ui| {
                         ui.scope(|ui| {
@@ -117,8 +124,6 @@ impl eframe::App for MyApp {
                             }
                         });
                         ui.group(|ui| {
-                            ui.set_height(100.0);
-                            ui.set_width(200.0);
                             ui.vertical(|ui| {
                                 ui.label("Задачи:");
                                 if id == 0 {
@@ -133,7 +138,6 @@ impl eframe::App for MyApp {
                                                     std::fs::remove_file(&self.sells.task);
                                                     let mut task = File::create(&self.sells.task.clone()).unwrap();
                                                     task.write_all(del.as_bytes());
-                                                    println!("{}",del);
                                                 };
                                             });
                                             counter += 1;
@@ -142,9 +146,7 @@ impl eframe::App for MyApp {
                                 }
                                 else if id == 1 {
                                     let mut counter = 0;
-                                    let file = File::open(self.assembly.task.clone()).unwrap();
-                                    let mut f = io::BufReader::new(file).lines();
-                                    for lines in f {
+                                    for lines in read_lines(self.assembly.task.clone()) {
                                         for line in lines {
                                             ui.horizontal_wrapped(|ui|{
                                                 ui.label(line);
@@ -154,11 +156,15 @@ impl eframe::App for MyApp {
                                                     std::fs::remove_file(&self.assembly.task);
                                                     let mut task = File::create(&self.assembly.task.clone()).unwrap();
                                                     task.write_all(del.as_bytes());
-                                                    println!("{}",del);
                                                 };
                                             });
                                             counter += 1;
                                         };
+                                        // let mut s = "".to_string()
+                                        // ui.text_edit_singleline(&mut s);
+                                        // if ui.button("добавить задачу").clicked() {
+                                        //     //write_into();
+                                        // }
                                     };
                                 }
                                 else {
@@ -174,7 +180,6 @@ impl eframe::App for MyApp {
                                                     std::fs::remove_file(&self.program.task);
                                                     let mut task = File::create(&self.program.task.clone()).unwrap();
                                                     task.write_all(del.as_bytes());
-                                                    println!("{}",del);
                                                 };
                                             });
                                             counter += 1;
