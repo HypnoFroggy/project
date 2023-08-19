@@ -1,14 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use eframe::egui;
-use std::fmt::write;
-use std::fs::File;
+use std::fs::{File,OpenOptions};
 use std::io::{self, BufRead, Read, Write};
 use std::path::Path;
 fn main() -> Result<(), eframe::Error> {
     env_logger::init();
 
     let options = eframe::NativeOptions {
-        initial_window_size: Some(egui::vec2(800.0, 600.0)),
+        initial_window_size: Some(egui::vec2(900.0, 675.0)),
         ..Default::default()
     };
     eframe::run_native(
@@ -35,33 +34,21 @@ fn delete_line(counter: i32, stringg: String) -> String{
         }
     }
     lines.push(quote.len());
-
-    println!("счетчик {}",counter);
-    //println!("хранимое {}",lines[counter as usize]);
-    //println!("хранимое {}",lines[(counter+1) as usize]);
-
-    //println!("{}\n",&quote[0..lines[lines.len()-1]]);
     if lines.len() == 2{
         "".to_string()
     }
     else if counter == 0 {
-        print!("{}",quote[lines[1]..lines[lines.len()-1]].to_string());
         quote[lines[1]+1..lines[lines.len()-1]].to_string()
     }
     else {
         quote[0..lines[counter as usize]].to_string() + &quote[lines[(counter+1) as usize]..lines[lines.len()-1]]
     }
-    
-    //quote[lines[counter as usize]..lines[(counter+1) as usize]].to_string()
-    
-
-    //((stringg[0..lines[(counter-1) as usize]]).to_string()
-    //+&(stringg[lines[(counter) as usize]..lines[lines.len()-1]]).to_string()).to_string()
 }
 struct Sector {
     info: String,
     empl: String,
-    task: String
+    task: String,
+    current: String
 }
 struct MyApp {
     sells: Sector,
@@ -75,17 +62,20 @@ impl Default for MyApp {
             sells: Sector  {
                 info:  "data/sells_info.txt".to_string(),
                 empl:  "data/sells_employees.txt".to_string(),
-                task:  "data/sells_tasks.txt".to_string()
+                task:  "data/sells_tasks.txt".to_string(),
+                current: "".to_string()
             },
             assembly: Sector   {
                 info:  "data/assembly_info.txt".to_string(),
                 empl:  "data/assembly_employees.txt".to_string(),
-                task:  "data/assembly_tasks.txt".to_string()
+                task:  "data/assembly_tasks.txt".to_string(),
+                current: "".to_string()
             },
             program: Sector   {
                 info:  "data/program_info.txt".to_string(),
                 empl:  "data/program_employees.txt".to_string(),
-                task:  "data/program_tasks.txt".to_string()
+                task:  "data/program_tasks.txt".to_string(),
+                current: "".to_string()
             },
         }
     }
@@ -99,13 +89,13 @@ impl eframe::App for MyApp {
                 for (id, section) in sections.iter().enumerate() {
                     ui.vertical(|ui| {
                         ui.scope(|ui| {
-                            ui.set_height(10.0);
-                            ui.set_width(200.0);
+                            ui.set_height(25.0);
+                            ui.set_width(280.0);
                             ui.heading(*section);
                         });
                         ui.group(|ui| {
-                            ui.set_height(100.0);
-                            ui.set_width(200.0);
+                            ui.set_height(200.0);
+                            ui.set_width(280.0);
                             ui.label("Общая информация:");
                             if id == 0 {
                                 let mut lab = "".to_string();
@@ -143,6 +133,18 @@ impl eframe::App for MyApp {
                                             counter += 1;
                                         };
                                     };
+                                    ui.text_edit_singleline(&mut self.sells.current);
+                                    if ui.button("добавить задачу").clicked() {
+                                        let mut lab = "".to_string();
+                                        let mut f: File = OpenOptions::new()
+                                        .write(true)
+                                        .append(true)
+                                        .open(&self.sells.task.clone())
+                                        .unwrap();
+                                        self.sells.current = self.sells.current.clone() + "\n";
+                                        f.write_all(self.sells.current.as_bytes());
+                                        self.sells.current = "".to_string();
+                                    }
                                 }
                                 else if id == 1 {
                                     let mut counter = 0;
@@ -160,12 +162,19 @@ impl eframe::App for MyApp {
                                             });
                                             counter += 1;
                                         };
-                                        // let mut s = "".to_string()
-                                        // ui.text_edit_singleline(&mut s);
-                                        // if ui.button("добавить задачу").clicked() {
-                                        //     //write_into();
-                                        // }
                                     };
+                                    ui.text_edit_singleline(&mut self.assembly.current);
+                                    if ui.button("добавить задачу").clicked() {
+                                        let mut lab = "".to_string();
+                                        let mut f: File = OpenOptions::new()
+                                        .write(true)
+                                        .append(true)
+                                        .open(&self.assembly.task.clone())
+                                        .unwrap();
+                                        self.assembly.current = self.assembly.current.clone() + "\n";
+                                        f.write_all(self.assembly.current.as_bytes());
+                                        self.assembly.current = "".to_string();
+                                    }
                                 }
                                 else {
                                     let mut counter = 0;
@@ -173,7 +182,6 @@ impl eframe::App for MyApp {
                                         for line in lines {
                                             ui.horizontal_wrapped(|ui|{
                                                 ui.label(line);
-                                                let but = ui.button("удалить");
                                                 let but = ui.button("удалить");
                                                 if but.clicked() {
                                                     let del = delete_line(counter, self.program.task.clone());
@@ -185,6 +193,18 @@ impl eframe::App for MyApp {
                                             counter += 1;
                                         };
                                     };
+                                    ui.text_edit_singleline(&mut self.program.current);
+                                    if ui.button("добавить задачу").clicked() {
+                                        let mut lab = "".to_string();
+                                        let mut f: File = OpenOptions::new()
+                                        .write(true)
+                                        .append(true)
+                                        .open(&self.program.task.clone())
+                                        .unwrap();
+                                        self.program.current = self.program.current.clone() + "\n";
+                                        f.write_all(self.program.current.as_bytes());
+                                        self.program.current = "".to_string();
+                                    }
                                 }
                             });
                         });
